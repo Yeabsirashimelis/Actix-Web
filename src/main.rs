@@ -1,6 +1,10 @@
 use std::sync::Mutex;
 
-use actix_web::{get, guard, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    get, guard, post,
+    web::{self, head},
+    App, HttpResponse, HttpServer, Responder,
+};
 
 /*
 /*
@@ -220,6 +224,7 @@ async fn main() {
 
 /////////////////////////////////////////////////////////////////
 /*
+/*
    APPLICATION GUARDS AND VIRTUAL HOSTING
     you can think of a guard as a simple function that accepts a request object reference and returns true or false
      Formally, a guard is any object that implements the Guard trait
@@ -284,3 +289,54 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
+ */
+
+/////////////////////////////////////////////////////////////////////////////
+/*
+/*
+Configure
+ for simplicity and reuseability both App and web::Scope provide the configure method.
+  this function is useful form oving parts of the configuration to a different module or even library.
+  for eg, some of the resource's configuration could be moved to a different module
+
+ App::configure() and web::Scope::configure() let you modularize route and service setup by moving
+  them into separate functions or modules.
+
+    Instead of registering all routes directly in main.rs,
+    you can group related ones (like /users or /posts) into reusable config functions.
+ */
+
+//this function could be located in a different module
+fn scoped_config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::resource("/test")
+            .route(web::get().to(|| async { HttpResponse::Ok().body("test") }))
+            .route(web::head().to(HttpResponse::MethodNotAllowed)),
+    );
+}
+
+//this function could be located in a different module
+fn config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::resource("/app")
+            .route(web::get().to(|| async { HttpResponse::Ok().body("app") }))
+            .route(web::head().to(HttpResponse::MethodNotAllowed)),
+    );
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .configure(config) // applies to App-level routes
+            .service(web::scope("/api").configure(scoped_config)) //like app.use("/users" userRouter) in express.js
+            .route(
+                "/",
+                web::get().to(|| async { HttpResponse::Ok().body("/") }),
+            )
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
+}
+ */
