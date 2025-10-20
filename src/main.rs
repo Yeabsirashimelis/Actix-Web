@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, guard, post, web, App, HttpResponse, HttpServer, Responder};
 
 /*
 /*
@@ -116,6 +116,7 @@ async fn main() -> std::io::Result<()> {
 
 ///////////////////////////////////////////////////////////////////
 /*
+/*
   Shared Mutable State
   HttpServer accpets an application factory rather than an application instance.
   An httpServer constructs an application instance for each thread. threfore application data must be
@@ -181,6 +182,103 @@ async fn main() -> std::io::Result<()> {
                         */
             .app_data(counter.clone()) // register the crated data
             .route("/", web::get().to(index))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
+}
+ */
+
+////////////////////////////////////////////////////////////////
+/*
+/*
+   USING AN APPLICATION SCOPE TO COMPOSE APPLICATIONS
+
+   🔹 Purpose
+    web::scope() defines a URL path prefix for a group of routes.
+    It’s a way to namespace routes (e.g. /users, /admin, /api).
+    All routes inside that scope automatically get the prefix prepended.
+
+🔹 Why It’s Useful
+    Helps organize routes logically (by feature or module).
+    Allows mounting existing route groups under different paths.
+    Keeps route names consistent when generating URLs with url_for().
+
+*/
+
+#[get("/show")]
+async fn show_users() -> impl Responder {
+    "User list"
+}
+
+#[actix_web::main]
+async fn main() {
+    let scope = web::scope("/users").service(show_users);
+    App::new().service(scope);
+}
+ */
+
+/////////////////////////////////////////////////////////////////
+/*
+   APPLICATION GUARDS AND VIRTUAL HOSTING
+    you can think of a guard as a simple function that accepts a request object reference and returns true or false
+     Formally, a guard is any object that implements the Guard trait
+     Actix Web provides several guards
+
+    One of the provided guards is Host. it can be used as a filter based on request header info
+
+    If the guard returns true, the route’s handler runs;
+    if it returns false, Actix continues searching for another matching route.
+
+    🧠 Think of it like:
+    "A route will only activate if all its guards say yes.
+
+    //common built in guards
+    | Guard                                   | Purpose                    |
+| --------------------------------------- | -------------------------- |
+| `guard::Get()`                          | Matches only GET requests  |
+| `guard::Post()`                         | Matches only POST requests |
+| `guard::Header("Header-Name", "value")` | Matches based on a header  |
+| `guard::Host("example.com")`            | Matches a specific host    |
+| `guard::Any(...)` / `guard::All(...)`   | Combine multiple guards    |
+
+
+You can also create your own:
+use actix_web::{dev::ServiceRequest, guard::Guard};
+
+struct CustomGuard;
+
+impl Guard for CustomGuard {
+    fn check(&self, req: &ServiceRequest) -> bool {
+        req.path().starts_with("/admin")
+    }
+}
+
+Then use it like:
+.route("/admin", web::get().guard(CustomGuard).to(admin_handler))
+
+*/
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        /*
+        If the request’s Host header is example.com, it hits the first handler.
+        If it’s test.com, it hits the second.
+        THIS ALLOWS MULTI-DOMAIN SUPPORT WITHIN THE SAME APP
+                 */
+        App::new()
+            .service(
+                web::scope("/")
+                    .guard(guard::Host("www.rust-lang.org"))
+                    .route("", web::to(|| async { HttpResponse::Ok().body("www") })),
+            )
+            .service(
+                web::scope("/")
+                    .guard(guard::Host("users.rust-lang.org"))
+                    .route("", web::to(|| async { HttpResponse::Ok().body("user") })),
+            )
+            .route("/", web::to(HttpResponse::Ok))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
