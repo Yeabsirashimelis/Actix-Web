@@ -340,3 +340,23 @@ async fn main() -> std::io::Result<()> {
     .await
 }
  */
+
+////////////////////////////////////////////////////
+/*
+/*
+MULTI-THREADING
+ httpServer automatically starts a number of HTTP workers, by default this numbers is
+ equal to the number of physical CPUS in the system. This number can be overriden with
+  the HttpServer::workers() method
+*/
+
+#[actix_web::main]
+async fn main() {
+    let _ = HttpServer::new(|| App::new().route("/", web::get().to(HttpResponse::Ok))).workers(4);
+    //  <- Start 4 workers
+}
+ */
+
+////////////////////////////////////////////////////////////////
+
+fn main() {}
