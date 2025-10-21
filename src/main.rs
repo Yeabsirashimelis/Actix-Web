@@ -1,9 +1,7 @@
-use std::sync::Mutex;
+use std::{sync::Mutex, time::Duration};
 
 use actix_web::{
-    get, guard, post,
-    web::{self, head},
-    App, HttpResponse, HttpServer, Responder,
+    get, guard, http::{self, KeepAlive}, post, web::{self, head}, App, HttpRequest, HttpResponse, HttpServer, Responder
 };
 
 /*
@@ -376,6 +374,48 @@ async fn main() {
 */
 
 ////////////////////////////////////////////////////////////////
+/*
+/*
+  KEEP-ALIVE
+    actix web keeps connections open to wait for subsquent requests
+      keep alive connection behaviour is defined by server settings
+      - Duration::from_secs(75) or keepAlive::Timeout(75) : enables 75 second keep-alive timer
+      - KeepAlive::Os: uses Os keep-alive
+      - Noe or KeepAlive::Disabled: disables keep-alive
+*/
 
+#[actix_web::main]
+// async fn main() -> std::io::Result<()>{
+//     // Set keep-alive to 75 seconds
+//     let _one = HttpServer::new(app).keep_alive(Duration::from_secs(75));
 
+//     // use OS's keep-alive (usually quite long)
+//     let _two = HttpServer::new(app).keep_alive(KeepAlive::Os);
+
+//     // Disable keep-alive
+//     let _three = HttpServer::new(app).keep_alive(None)
+
+//     Ok(())
+
+//     /*
+//       if the first option above is selected, then keep-alive is enabled for HTTP/1.1 requests
+//        if the response does not explicitly disallow it by, for eg, setting the connection type for 
+//         Close or Upgrade. force closing a connection can be done with the force_close() method on HTTPResponseBuilder
+
+//         Keep-alive is off for HTTP/1.0 and is on for HTTP/1.1 and HTTP/2.0.
+//      */
+// }
+      
+  // Keep-alive is off for HTTP/1.0 and is on for HTTP/1.1 and HTTP/2.0.
+async fn index(_req: HttpRequest) -> HttpResponse {
+    let mut resp = HttpResponse::Ok()
+    .force_close() // <- close connection on the HttpRepsonseBuilder
+    .finish();
+
+    // Alternatively close connection on the HttpResponse struct
+    resp.head_mut().set_connection_type(http::ConnectionType::Close);
+
+    resp
+}
+ */
 fn main() {}
