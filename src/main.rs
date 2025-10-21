@@ -357,6 +357,25 @@ async fn main() {
 }
  */
 
+/*
+   since each worker thread processes its requests sequentially, handlers which block the 
+    current thread will cause the current worker to stop processing new requests
+    
+        fn my_handler() -> impl Responder {
+            std::thread::sleep(Duration::from_secs(5)); // <-- Bad practice! Will cause the current worker thread to hang!
+        "response"
+
+    for this reason, any long, non-cpu-bound operation (eg: database operations) should be expresses as futures or asynchronous operations
+      Async handlers get executed concurrently by worker threads andd thus don't block execution
+
+        async fn my_handler() -> impl Responder {
+           tokio::time::sleep(Duration::from_secs(5)).await // <-- Ok. Worker thread will handle other requests here
+           "response"
+        }
+}
+*/
+
 ////////////////////////////////////////////////////////////////
+
 
 fn main() {}
