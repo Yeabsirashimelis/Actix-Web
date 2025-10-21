@@ -1,9 +1,9 @@
-use std::{sync::Mutex, time::Duration};
+use std::{string, sync::Mutex, time::Duration};
 
 use actix_web::{
-    get, guard, http::{self, KeepAlive}, post, web::{self, head}, App, HttpRequest, HttpResponse, HttpServer, Responder
+    get, guard, http::{self, KeepAlive}, post, web::{self, head, Json}, App, HttpRequest, HttpResponse, HttpServer, Responder, Result
 };
-
+use serde::Deserialize;
 /*
 /*
  Notice that some of these handlers have routing information attached directly using the
@@ -418,4 +418,83 @@ async fn index(_req: HttpRequest) -> HttpResponse {
     resp
 }
  */
-fn main() {}
+///////////////////////////////////////////////////////////
+/*
+     GRACEFUL SHUTDOWN
+       HttpServer supports graceful shutdown. after receiving a stop signal, workers have a specific amount of time to finish serving requests
+
+*/
+/////////////////////////////////////////////////////////
+/* 
+     web::Path<(..,..,......)> - extract the dynamic part of the route
+        json: web::Json<MyInfo> - extract the json body to a struct
+*/
+
+// struct MyInfo {
+//     id: String,
+//     username: String
+// }
+// async fn index(path: web::Path<(String, String)>, json: web::Json<MyInfo>) -> impl Responder {
+//     let path = path.into_inner();
+//     format!("{} {} {} {}", path.0, path.1, json.id, json.username)
+// }
+// fn main() {}
+
+///////////////////////////////////////////////
+/* 
+/* 
+/*
+    Path
+Path provides information that is extracted from the request's path. Parts of the path that are extractable are called "dynamic segments" and are marked with curly braces. You can deserialize any variable segment from the path.
+For instance, for resource that registered for the /users/{user_id}/{friend} path, two segments could be deserialized, user_id and friend. These segments could be extracted as a tuple in the order they are declared (e.g., Path<(u32, String)>).
+ */
+
+/// extract path info from "/users/{user_id}/{friend}" url
+/// {user_id} - deserializes to a u32
+/// {friend} - deserializes to a String
+#[get("/users/{user_id}/{friend}")] // <- define path parameters
+async fn index(path: web::Path<(u32, String)>) -> Result<String> {
+    let (user_id, friend) = path.into_inner();
+    Ok(format!("Welcome {}, user_id {}!", friend, user_id))
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| App::new().service(index))
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await
+}
+        */
+
+////////////////////////////////////////////////////////////////////
+/*It is also possible to extract path information to a type that implements the Deserialize
+ trait from serde by matching dynamic segment names with field names. Here is an equivalent 
+ example that uses a deserialization struct using serde (make sure to enable its derive feature) 
+ instead of a tuple type.
+*/
+
+#[derive(Deserialize)]
+struct Info {
+    user_id: u32,
+    friend: String,
+}
+
+/// extract path info using serde
+#[get("/users/{user_id}/{friend}")] // <- define path parameters
+async fn index(info: web::Path<Info>) -> Result<String> {
+    Ok(format!(
+        "Welcome {}, user_id {}!",
+        info.friend, info.user_id
+    ))
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    
+    HttpServer::new(|| App::new().service(index))
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await
+}
+        */
